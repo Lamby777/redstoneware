@@ -19,11 +19,9 @@ fn main() -> IDFC<()> {
 	let keyfile_loc = keyfile_loc; // make immutable
 
 	let mode_choice: String = read!();
-	let first_char = mode_choice.chars().next();
-	let encrypt_mode =
-		if first_char.is_none() { false } else {
-			first_char.unwrap().to_lowercase().to_string() == "y"
-		};
+	let encrypt_mode = mode_choice.starts_with(|v: char|
+		v.to_lowercase().to_string() == "y"
+	);
 	
 	let keys = if encrypt_mode {
 		None
