@@ -38,7 +38,7 @@ fn encrypt_file(path: PathBuf) -> Result<()> {
 
 		// Prepare new file data
 		let content = fs::read(&path)?;
-		let encrypted_data = encrypt_xchacha20(content)?;
+		let encrypted_data = encrypt_xchacha20(&content[..])?;
 
 		// Write encrypted data to new file
 		fs::write(&encrypted_path, &encrypted_data[..])?;
@@ -48,11 +48,11 @@ fn encrypt_file(path: PathBuf) -> Result<()> {
 	Ok(())
 }
 
-fn encrypt_xchacha20(src: Vec<u8>) -> Result<Vec<u8>> {
+fn encrypt_xchacha20(src: &[u8]) -> Result<Vec<u8>> {
 	// check this: https://docs.rs/orion/latest/orion/aead/index.html
 
 	let secret_key = aead::SecretKey::default();
-	let ciphertext = aead::seal(&secret_key, &src[..])?;
+	let ciphertext = aead::seal(&secret_key, src)?;
 	//let decrypted_data = aead::open(&secret_key, &ciphertext)?;
 
 	Ok(ciphertext)
