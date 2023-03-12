@@ -6,7 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aes = "0.8.2"
+anyhow = "1.0.69"
+chacha20poly1305 = { version = "0.10.1", features = ["stream"] }
 cipher = "0.4.4"
 dirs = "4.0.0"
+orion = "0.17.4"
 rand = "0.8.5"
