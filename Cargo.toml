@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.69"
 dirs = "4.0.0"
 orion = {version = "0.17.4", features = [ "safe_api" ] }
 rand = "0.8.5"
+text_io = "0.1.12"
 walkdir = "2.3.2"
