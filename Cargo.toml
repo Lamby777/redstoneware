@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.69"
-chacha20poly1305 = { version = "0.10.1", features = ["stream"] }
 cipher = "0.4.4"
 dirs = "4.0.0"
+futures = "0.3.27"
 orion = "0.17.4"
 rand = "0.8.5"
